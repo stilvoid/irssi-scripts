@@ -1,4 +1,5 @@
 # hipchat_complete.pl - (c) 2013 John Morrissey <jwm@horde.net>
+#                       (c) 2014 Steve Engledow <steve@offend.me.uk>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -35,13 +36,18 @@
 # This plugin tab-completes mention names and tab-translates name-based
 # nicks to their corresponding "mention names."
 #
+# Names can be matched from any position in the name, not jus the beginning.
+#
+# If you have typed an @, if will be removed before matching
+#
 # For example, if JohnMorrissey has a mention name of @jwm, all of these
 # tab complete to @jwm:
 #
 #   John<tab>
 #   @John<tab>
-#   @jw<tab>
-#
+#   Morr<tab>
+#   jw<tab>
+#   wm<tab>
 #
 # To use
 # ======
@@ -117,11 +123,15 @@ sub sig_complete_hipchat_nick {
 	if ($word =~ /^@/) {
 		$word =~ s/^@//;
 	}
+
+	# People in the chan
 	foreach my $nick ($wi->nicks()) {
 		if ($nick->{nick} =~ /\Q$word\E/i) {
 			push(@$complist, "\@$NICK_TO_MENTION{$nick->{nick}}");
 		}
 	}
+
+	# Auto-complete other mentions
 	foreach my $mention (values %NICK_TO_MENTION) {
 		if ($mention =~ /\Q$word\E/i) {
 			push(@$complist, "\@$mention");
