@@ -95,7 +95,6 @@ sub get_hipchat_people {
 	my $hipchat_users = from_json($response->decoded_content)->{items};
 	foreach my $user (@{$hipchat_users}) {
 		my $name = $user->{name};
-		$name =~ s/[^A-Za-z]//g;
 		$NICK_TO_MENTION{$name} = $user->{mention_name};
 	}
 	$LAST_MAP_UPDATED = time();
@@ -119,12 +118,12 @@ sub sig_complete_hipchat_nick {
 		$word =~ s/^@//;
 	}
 	foreach my $nick ($wi->nicks()) {
-		if ($nick->{nick} =~ /^\Q$word\E/i) {
+		if ($nick->{nick} =~ /\Q$word\E/i) {
 			push(@$complist, "\@$NICK_TO_MENTION{$nick->{nick}}");
 		}
 	}
 	foreach my $mention (values %NICK_TO_MENTION) {
-		if ($mention =~ /^\Q$word\E/i) {
+		if ($mention =~ /\Q$word\E/i) {
 			push(@$complist, "\@$mention");
 		}
 	}
