@@ -76,73 +76,73 @@ use LWP::UserAgent;
 
 my $VERSION = '1.0';
 my %IRSSI = (
-	author => 'John Morrissey',
-	contact => 'jwm@horde.net',
-	name => 'hipchat_complete',
-	description => 'Translate nicks to HipChat "mention names"',
-	licence => 'BSD',
+    author => 'John Morrissey',
+    contact => 'jwm@horde.net',
+    name => 'hipchat_complete',
+    description => 'Translate nicks to HipChat "mention names"',
+    licence => 'BSD',
 );
 
 my %NICK_TO_MENTION;
 my $LAST_MAP_UPDATED = 0;
 
 sub get_hipchat_people {
-	my $ua = LWP::UserAgent->new;
-	$ua->timeout(5);
+    my $ua = LWP::UserAgent->new;
+    $ua->timeout(5);
 
-	my $auth_token = Irssi::settings_get_str('hipchat_auth_token');
-	if (!$auth_token) {
-		return;
-	}
-	my $r = HTTP::Request->new('GET',
-		"https://api.hipchat.com/v2/user?auth_token=$auth_token");
-	my $response = $ua->request($r);
+    my $auth_token = Irssi::settings_get_str('hipchat_auth_token');
+    if (!$auth_token) {
+        return;
+    }
+    my $r = HTTP::Request->new('GET',
+        "https://api.hipchat.com/v2/user?auth_token=$auth_token");
+    my $response = $ua->request($r);
 
-	my $hipchat_users = from_json($response->decoded_content)->{items};
-	foreach my $user (@{$hipchat_users}) {
-		my $name = $user->{name};
-		$NICK_TO_MENTION{$name} = $user->{mention_name};
-	}
-	$LAST_MAP_UPDATED = time();
+    my $hipchat_users = from_json($response->decoded_content)->{items};
+    foreach my $user (@{$hipchat_users}) {
+        my $name = $user->{name};
+        $NICK_TO_MENTION{$name} = $user->{mention_name};
+    }
+    $LAST_MAP_UPDATED = time();
 }
 
 sub sig_complete_hipchat_nick {
-	my ($complist, $window, $word, $linestart, $want_space) = @_;
+    my ($complist, $window, $word, $linestart, $want_space) = @_;
 
-	my $wi = Irssi::active_win()->{active};
-	return unless ref $wi and $wi->{type} eq 'CHANNEL';
-	return unless $wi->{server}->{chatnet} eq
-		Irssi::settings_get_str('hipchat_chatnet');
+    my $wi = Irssi::active_win()->{active};
+    return unless ref $wi and $wi->{type} eq 'CHANNEL';
+    return unless $wi->{server}->{chatnet} eq
+        Irssi::settings_get_str('hipchat_chatnet');
 
-	# Reload the nick -> mention name map periodically,
-	# so we pick up new users.
-	if (($LAST_MAP_UPDATED + 4 * 60 * 60) < time()) {
-		get_hipchat_people();
-	}
+    # Reload the nick -> mention name map periodically,
+    # so we pick up new users.
+    if (($LAST_MAP_UPDATED + 4 * 60 * 60) < time()) {
+        get_hipchat_people();
+    }
 
-	if ($word =~ /^@/) {
-		$word =~ s/^@//;
-	}
+    if ($word =~ /^@/) {
+        $word =~ s/^@//;
+    }
 
-	# People in the chan
-	foreach my $nick ($wi->nicks()) {
-		if ($nick->{nick} =~ /\Q$word\E/i) {
-			push(@$complist, "\@$NICK_TO_MENTION{$nick->{nick}}");
-		}
-	}
+    # People in the chan
+    foreach my $nick ($wi->nicks()) {
+        if ($nick->{nick} =~ /\Q$word\E/i) {
+            push(@$complist, "\@$NICK_TO_MENTION{$nick->{nick}}");
+        }
+    }
 
-	# Auto-complete other mentions
-	foreach my $mention (values %NICK_TO_MENTION) {
-		if ($mention =~ /\Q$word\E/i) {
-			push(@$complist, "\@$mention");
-		}
-	}
+    # Auto-complete other mentions
+    foreach my $mention (values %NICK_TO_MENTION) {
+        if ($mention =~ /\Q$word\E/i) {
+            push(@$complist, "\@$mention");
+        }
+    }
 
-	# If there's a mention name completion that begins with $word,
-	# prefer that over a channel nick/fullname.
-	@$complist = sort {
-		return $a =~ /^\@\Q$word\E(.*)$/i ? 0 : 1;
-	} @$complist;
+    # If there's a mention name completion that begins with $word,
+    # prefer that over a channel nick/fullname.
+    @$complist = sort {
+        return $a =~ /^\@\Q$word\E(.*)$/i ? 0 : 1;
+    } @$complist;
 }
 
 Irssi::settings_add_str('hipchat_complete', 'hipchat_auth_token', '');
