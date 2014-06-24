@@ -89,10 +89,10 @@ sub get_hipchat_people {
 		return;
 	}
 	my $r = HTTP::Request->new('GET',
-		"https://api.hipchat.com/v1/users/list?auth_token=$auth_token");
+		"https://api.hipchat.com/v2/user?auth_token=$auth_token");
 	my $response = $ua->request($r);
 
-	my $hipchat_users = from_json($response->decoded_content)->{users};
+	my $hipchat_users = from_json($response->decoded_content)->{items};
 	foreach my $user (@{$hipchat_users}) {
 		my $name = $user->{name};
 		$name =~ s/[^A-Za-z]//g;
