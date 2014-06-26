@@ -124,17 +124,51 @@ sub sig_complete_hipchat_nick {
         $word =~ s/^@//;
     }
 
+    my %matches;
+
     # People in the chan
+    # Match first part
+    foreach my $nick ($wi->nicks()) {
+        if ($nick->{nick} =~ /^\Q$word\E/i) {
+            my $mention = $NICK_TO_MENTION{$nick->{nick}};
+
+            if(not $matches{$mention}) {
+                $matches{"$mention"} = 1;
+                push(@$complist, "\@$mention");
+            }
+        }
+    }
+
+    # Match anywhere
     foreach my $nick ($wi->nicks()) {
         if ($nick->{nick} =~ /\Q$word\E/i) {
-            push(@$complist, "\@$NICK_TO_MENTION{$nick->{nick}}");
+            my $mention = $NICK_TO_MENTION{$nick->{nick}};
+
+            if(not $matches{$mention}) {
+                $matches{"$mention"} = 1;
+                push(@$complist, "\@$mention");
+            }
         }
     }
 
     # Auto-complete other mentions
+    # Match first part
+    while (my ($nick, $mention) = each %NICK_TO_MENTION) {
+        if ($nick =~ /^\Q$word\E/i || $mention =~ /^\Q$word\E/i) {
+            if(not $matches{$mention}) {
+                $matches{"$mention"} = 1;
+                push(@$complist, "\@$mention");
+            }
+        }
+    }
+
+    # Match anywhere
     while (my ($nick, $mention) = each %NICK_TO_MENTION) {
         if ($nick =~ /\Q$word\E/i || $mention =~ /\Q$word\E/i) {
-            push(@$complist, "\@$mention");
+            if(not $matches{$mention}) {
+                $matches{"$mention"} = 1;
+                push(@$complist, "\@$mention");
+            }
         }
     }
 }
