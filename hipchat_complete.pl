@@ -132,17 +132,11 @@ sub sig_complete_hipchat_nick {
     }
 
     # Auto-complete other mentions
-    foreach my $mention (values %NICK_TO_MENTION) {
-        if ($mention =~ /\Q$word\E/i) {
+    while (my ($nick, $mention) = each %NICK_TO_MENTION) {
+        if ($nick =~ /\Q$word\E/i || $mention =~ /\Q$word\E/i) {
             push(@$complist, "\@$mention");
         }
     }
-
-    # If there's a mention name completion that begins with $word,
-    # prefer that over a channel nick/fullname.
-    @$complist = sort {
-        return $a =~ /^\@\Q$word\E(.*)$/i ? 0 : 1;
-    } @$complist;
 }
 
 Irssi::settings_add_str('hipchat_complete', 'hipchat_auth_token', '');
