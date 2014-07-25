@@ -176,5 +176,6 @@ sub sig_complete_hipchat_nick {
 
 Irssi::settings_add_str('hipchat_complete', 'hipchat_auth_token', '');
 Irssi::settings_add_str('hipchat_complete', 'hipchat_chatnet', 'bitlbee');
+Irssi::settings_add_str('hipchat_complete', 'hipchat_api_url', 'https://api.hipchat.com/v2/');
 get_hipchat_people();
 Irssi::signal_add('complete word', \&sig_complete_hipchat_nick);
