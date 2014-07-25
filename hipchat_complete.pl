@@ -95,7 +95,7 @@ sub get_hipchat_people {
     if (!$auth_token) {
         return;
     }
-    my api_url = Irssi::settings_get_str('hipchat_api_url');
+    my $api_url = Irssi::settings_get_str('hipchat_api_url');
     my $offset = 0;
     my $json;
 
