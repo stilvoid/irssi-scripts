@@ -1,5 +1,6 @@
 # hipchat_complete.pl - (c) 2013 John Morrissey <jwm@horde.net>
 #                       (c) 2014 Steve Engledow <steve@offend.me.uk>
+#                       (c) 2014 Jeremie Laval <jeremie.laval@gmail.com>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
