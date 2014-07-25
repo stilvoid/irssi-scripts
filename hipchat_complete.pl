@@ -95,15 +95,22 @@ sub get_hipchat_people {
     if (!$auth_token) {
         return;
     }
-    my $r = HTTP::Request->new('GET',
-        "https://api.hipchat.com/v2/user?auth_token=$auth_token");
-    my $response = $ua->request($r);
+	my api_url = Irssi::settings_get_str('hipchat_api_url');
+	my $offset = 0;
+	my $json;
 
-    my $hipchat_users = from_json($response->decoded_content)->{items};
-    foreach my $user (@{$hipchat_users}) {
-        my $name = $user->{name};
-        $NICK_TO_MENTION{$name} = $user->{mention_name};
-    }
+	do {
+		my $r = HTTP::Request->new('GET', $api_url . "/user?auth_token=$auth_token&max-results=100&start-index=$offset");
+		my $response = $ua->request($r);
+
+		$json = from_json($response->decoded_content);
+		my $hipchat_users = $json->{items};
+		foreach my $user (@{$hipchat_users}) {
+			my $name = $user->{name};
+			$NICK_TO_MENTION{$name} = $user->{mention_name};
+		}
+		$offset += 100;
+	} while (exists($json->{links}) && exists($json->{links}->{'next'}));
     $LAST_MAP_UPDATED = time();
 }
 
