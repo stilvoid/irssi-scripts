@@ -1,5 +1,6 @@
 # hipchat_complete.pl - (c) 2013 John Morrissey <jwm@horde.net>
 #                       (c) 2014 Steve Engledow <steve@offend.me.uk>
+#                       (c) 2014 Jeremie Laval <jeremie.laval@gmail.com>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -94,15 +95,22 @@ sub get_hipchat_people {
     if (!$auth_token) {
         return;
     }
-    my $r = HTTP::Request->new('GET',
-        "https://api.hipchat.com/v2/user?auth_token=$auth_token");
-    my $response = $ua->request($r);
+    my $api_url = Irssi::settings_get_str('hipchat_api_url');
+    my $offset = 0;
+    my $json;
 
-    my $hipchat_users = from_json($response->decoded_content)->{items};
-    foreach my $user (@{$hipchat_users}) {
-        my $name = $user->{name};
-        $NICK_TO_MENTION{$name} = $user->{mention_name};
-    }
+    do {
+        my $r = HTTP::Request->new('GET', $api_url . "/user?auth_token=$auth_token&max-results=100&start-index=$offset");
+        my $response = $ua->request($r);
+
+        $json = from_json($response->decoded_content);
+        my $hipchat_users = $json->{items};
+        foreach my $user (@{$hipchat_users}) {
+            my $name = $user->{name};
+            $NICK_TO_MENTION{$name} = $user->{mention_name};
+        }
+        $offset += 100;
+    } while (exists($json->{links}) && exists($json->{links}->{'next'}));
     $LAST_MAP_UPDATED = time();
 }
 
@@ -175,5 +183,6 @@ sub sig_complete_hipchat_nick {
 
 Irssi::settings_add_str('hipchat_complete', 'hipchat_auth_token', '');
 Irssi::settings_add_str('hipchat_complete', 'hipchat_chatnet', 'bitlbee');
+Irssi::settings_add_str('hipchat_complete', 'hipchat_api_url', 'https://api.hipchat.com/v2/');
 get_hipchat_people();
 Irssi::signal_add('complete word', \&sig_complete_hipchat_nick);
