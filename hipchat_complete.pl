@@ -1,6 +1,7 @@
 # hipchat_complete.pl - (c) 2013 John Morrissey <jwm@horde.net>
 #                       (c) 2014 Steve Engledow <steve@offend.me.uk>
 #                       (c) 2014 Jeremie Laval <jeremie.laval@gmail.com>
+#                       (c) 2014 Brock Wilcox <awwaiid@thelackthereof.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -46,6 +47,7 @@
 #
 #   John<tab>
 #   @John<tab>
+#   @jw<tab>
 #   Morr<tab>
 #   jw<tab>
 #   wm<tab>
@@ -53,11 +55,11 @@
 # To use
 # ======
 #
-# 1. Install the HTTP::Message, JSON, and LWP Perl modules.
+# 1. Install the WebService::HipChat module from CPAN.
 #
 # 2. /script load hipchat_completion.pl
 #
-# 3. Get a Hipchat auth token (hipchat.com -> Account settings -> API
+# 3. Get a Hipchat auth v2 token (hipchat.com -> Account settings -> API
 #    access). In irssi:
 #
 #    /set hipchat_auth_token some-hex-value
@@ -70,67 +72,54 @@
 
 use strict;
 
-use HTTP::Request;
 use Irssi;
-use JSON;
-use LWP::UserAgent;
+use WebService::HipChat;
 
-my $VERSION = '1.0';
-my %IRSSI = (
-    author => 'John Morrissey',
-    contact => 'jwm@horde.net',
-    name => 'hipchat_complete',
-    description => 'Translate nicks to HipChat "mention names"',
-    licence => 'BSD',
+our $VERSION = '2.0';
+our %IRSSI = (
+	authors => 'John Morrissey',
+	contact => 'jwm@horde.net',
+	name => 'hipchat_complete',
+	description => 'Translate nicks to HipChat "mention names"',
+	license => 'BSD',
 );
 
 my %NICK_TO_MENTION;
 my $LAST_MAP_UPDATED = 0;
 
 sub get_hipchat_people {
-    my $ua = LWP::UserAgent->new;
-    $ua->timeout(5);
+	my $auth_token = Irssi::settings_get_str('hipchat_auth_token');
+	if (!$auth_token) {
+		return;
+	}
+	my $hc = WebService::HipChat->new(auth_token => $auth_token);
 
-    my $auth_token = Irssi::settings_get_str('hipchat_auth_token');
-    if (!$auth_token) {
-        return;
-    }
-    my $api_url = Irssi::settings_get_str('hipchat_api_url');
-    my $offset = 0;
-    my $json;
-
-    do {
-        my $r = HTTP::Request->new('GET', $api_url . "/user?auth_token=$auth_token&max-results=100&start-index=$offset");
-        my $response = $ua->request($r);
-
-        $json = from_json($response->decoded_content);
-        my $hipchat_users = $json->{items};
-        foreach my $user (@{$hipchat_users}) {
-            my $name = $user->{name};
-            $NICK_TO_MENTION{$name} = $user->{mention_name};
-        }
-        $offset += 100;
-    } while (exists($json->{links}) && exists($json->{links}->{'next'}));
-    $LAST_MAP_UPDATED = time();
+	my $hipchat_users = $hc->get_users->{items};
+	foreach my $user (@{$hipchat_users}) {
+		my $name = $user->{name};
+		$name =~ s/[^A-Za-z]//g;
+		$NICK_TO_MENTION{$name} = $user->{mention_name};
+	}
+	$LAST_MAP_UPDATED = time();
 }
 
 sub sig_complete_hipchat_nick {
-    my ($complist, $window, $word, $linestart, $want_space) = @_;
+	my ($complist, $window, $word, $linestart, $want_space) = @_;
 
-    my $wi = Irssi::active_win()->{active};
-    return unless ref $wi and $wi->{type} eq 'CHANNEL';
-    return unless $wi->{server}->{chatnet} eq
-        Irssi::settings_get_str('hipchat_chatnet');
+	my $wi = Irssi::active_win()->{active};
+	return unless ref $wi and $wi->{type} eq 'CHANNEL';
+	return unless $wi->{server}->{chatnet} eq
+		Irssi::settings_get_str('hipchat_chatnet');
 
-    # Reload the nick -> mention name map periodically,
-    # so we pick up new users.
-    if (($LAST_MAP_UPDATED + 4 * 60 * 60) < time()) {
-        get_hipchat_people();
-    }
+	# Reload the nick -> mention name map periodically,
+	# so we pick up new users.
+	if (($LAST_MAP_UPDATED + 4 * 60 * 60) < time()) {
+		get_hipchat_people();
+	}
 
-    if ($word =~ /^@/) {
-        $word =~ s/^@//;
-    }
+	if ($word =~ /^@/) {
+		$word =~ s/^@//;
+	}
 
     my %matches;
 
@@ -140,7 +129,7 @@ sub sig_complete_hipchat_nick {
         if ($nick->{nick} =~ /^\Q$word\E/i) {
             my $mention = $NICK_TO_MENTION{$nick->{nick}};
 
-            if(not $matches{$mention}) {
+            if(not $matches{$mention} and $mention != "") {
                 $matches{"$mention"} = 1;
                 push(@$complist, "\@$mention");
             }
@@ -152,7 +141,7 @@ sub sig_complete_hipchat_nick {
         if ($nick->{nick} =~ /\Q$word\E/i) {
             my $mention = $NICK_TO_MENTION{$nick->{nick}};
 
-            if(not $matches{$mention}) {
+            if(not $matches{$mention} and $mention != "") {
                 $matches{"$mention"} = 1;
                 push(@$complist, "\@$mention");
             }
@@ -183,6 +172,5 @@ sub sig_complete_hipchat_nick {
 
 Irssi::settings_add_str('hipchat_complete', 'hipchat_auth_token', '');
 Irssi::settings_add_str('hipchat_complete', 'hipchat_chatnet', 'bitlbee');
-Irssi::settings_add_str('hipchat_complete', 'hipchat_api_url', 'https://api.hipchat.com/v2/');
 get_hipchat_people();
 Irssi::signal_add('complete word', \&sig_complete_hipchat_nick);
